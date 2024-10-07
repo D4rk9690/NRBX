@@ -1,0 +1,115 @@
+-- ESP Library
+local ESP = {}
+
+-- Services
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-- Function to add glow and ESP to a character
+function ESP:AddGlow(character)
+    -- Prevent ESP on the local player's character
+    if character.Parent == Workspace and character == LocalPlayer.Character then
+        return
+    end
+
+    local player = Players:GetPlayerFromCharacter(character)
+    local teamColor = player.Team and player.TeamColor.Color or Color3.new(0, 1, 0)
+
+    -- Loop through parts of the character and add the glow
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") and not part:FindFirstChild("ESPAdornment") then
+            local boxAdornment = Instance.new("BoxHandleAdornment")
+            boxAdornment.Name = "ESPAdornment"
+            boxAdornment.Adornee = part
+            boxAdornment.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
+            boxAdornment.Color3 = teamColor
+            boxAdornment.Transparency = 0.5
+            boxAdornment.AlwaysOnTop = true
+            boxAdornment.ZIndex = 10
+            boxAdornment.Parent = part
+        end
+    end
+
+    -- Add username display above the character
+    local head = character:FindFirstChild("Head")
+    if head and not head:FindFirstChild("UsernameLabel") then
+        local billboardGui = Instance.new("BillboardGui")
+        billboardGui.Name = "UsernameLabel"
+        billboardGui.Adornee = head
+        billboardGui.Size = UDim2.new(0, 100, 0, 25)
+        billboardGui.StudsOffset = Vector3.new(0, 2, 0)
+        billboardGui.AlwaysOnTop = true
+        billboardGui.Parent = head
+
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = character.Name
+        textLabel.TextColor3 = Color3.new(1, 1, 1)
+        textLabel.TextStrokeTransparency = 0.5
+        textLabel.Font = Enum.Font.SourceSansBold
+        textLabel.TextScaled = true
+        textLabel.TextSize = 14
+        textLabel.Parent = billboardGui
+    end
+end
+
+-- Function to remove ESP from a character
+function ESP:RemoveGlow(character)
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            local adornment = part:FindFirstChild("ESPAdornment")
+            if adornment then
+                adornment:Destroy()
+            end
+        end
+    end
+
+    local head = character:FindFirstChild("Head")
+    if head then
+        local label = head:FindFirstChild("UsernameLabel")
+        if label then
+            label:Destroy()
+        end
+    end
+end
+
+-- Function to handle when a character spawns
+function ESP:OnCharacterAdded(character)
+    character:WaitForChild("HumanoidRootPart")
+    character:WaitForChild("Head")
+    self:AddGlow(character)
+end
+
+-- Function to handle when a player joins
+function ESP:OnPlayerAdded(player)
+    player.CharacterAdded:Connect(function(character)
+        self:OnCharacterAdded(character)
+    end)
+    if player.Character then
+        self:OnCharacterAdded(player.Character)
+    end
+end
+
+-- Function to initialize the ESP system
+function ESP:Initialize()
+    -- Handle players already in the game
+    for _, player in ipairs(Players:GetPlayers()) do
+        self:OnPlayerAdded(player)
+    end
+
+    -- Listen for new players joining
+    Players.PlayerAdded:Connect(function(player)
+        self:OnPlayerAdded(player)
+    end)
+
+    -- Listen for players leaving to clean up
+    Players.PlayerRemoving:Connect(function(player)
+        if player.Character then
+            self:RemoveGlow(player.Character)
+        end
+    end)
+end
+
+return ESP
