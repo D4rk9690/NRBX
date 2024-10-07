@@ -1,0 +1,317 @@
+local players = game:GetService("Players")
+local workspace = game:GetService("Workspace")
+local userInput = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+
+-- Load the Fluent library and other dependencies
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+-- Create a new window with a very dark theme and no transparency
+local Window = Fluent:CreateWindow({
+    Title = "Fluent " .. Fluent.Version,
+    SubTitle = "by dawid",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = false,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "" }),
+    Visual = Window:AddTab({ Title = "Visual", Icon = "" }),
+    Combat = Window:AddTab({ Title = "Combat", Icon = "" }),
+    Credit = Window:AddTab({ Title = "Credit", Icon = "" })
+}
+
+local espEnabled = false
+local teamCheckEnabled = false
+local useTeamColor = true
+local showNameAndDistance = true
+local espColor = Color3.fromRGB(0, 255, 0) -- Default ESP color when not using team color
+local aimbotEnabled = false
+local aimbotKey = Enum.KeyCode.E
+local aimbotRange = 1000 -- Range within which the aimbot works
+local lockedEnemy = nil
+local aimbotActive = false
+
+-- Function to get the appropriate color for a player
+local function getESPColor(player)
+    if useTeamColor and player.Team then
+        return player.Team.TeamColor.Color
+    else
+        return espColor
+    end
+end
+
+-- Function to add ESP for players
+local function addPlayerESP(player)
+    local function onCharacterAdded(character)
+        if character:FindFirstChild("HumanoidRootPart") then
+            -- Add highlight if it doesn't already exist
+            if not character:FindFirstChild("PlayerHighlight") then
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "PlayerHighlight"
+                highlight.Adornee = character
+                highlight.FillColor = getESPColor(player)
+                highlight.OutlineColor = Color3.new(0, 0, 0) -- Black outline
+                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                highlight.Parent = character
+            else
+                -- Update existing highlight color
+                character.PlayerHighlight.FillColor = getESPColor(player)
+            end
+
+            -- Add name and distance label
+            if showNameAndDistance and not character:FindFirstChild("UsernameLabel") then
+                local billboard = Instance.new("BillboardGui")
+                billboard.Size = UDim2.new(0, 200, 0, 50)
+                billboard.StudsOffset = Vector3.new(0, 3, 0) -- Position above the character's head
+                billboard.AlwaysOnTop = true
+                billboard.Adornee = character.HumanoidRootPart
+                billboard.Name = "UsernameLabel"
+                billboard.Parent = character
+
+                local textLabel = Instance.new("TextLabel")
+                textLabel.Size = UDim2.new(1, 0, 1, 0)
+                textLabel.BackgroundTransparency = 1
+                textLabel.TextColor3 = getESPColor(player)
+                textLabel.Font = Enum.Font.SourceSansBold
+                textLabel.TextScaled = true
+                textLabel.TextStrokeTransparency = 0.5 -- Make text more visible
+                textLabel.TextYAlignment = Enum.TextYAlignment.Bottom -- Align text to bottom
+                textLabel.Parent = billboard
+
+                local function updateLabel()
+                    if players.LocalPlayer and players.LocalPlayer.Character and players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        local distance = (character.HumanoidRootPart.Position - players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                        textLabel.Text = string.format("%s\n%.0f studs", player.Name, distance)
+                    end
+                end
+
+                updateLabel()
+                runService.Heartbeat:Connect(updateLabel)
+            elseif not showNameAndDistance and character:FindFirstChild("UsernameLabel") then
+                -- Remove label if the toggle is off
+                character.UsernameLabel:Destroy()
+            end
+        end
+    end
+
+    -- Listen for when the player's character is added
+    if player.Character then
+        onCharacterAdded(player.Character)
+    end
+    player.CharacterAdded:Connect(onCharacterAdded)
+end
+
+-- Function to remove ESP for players
+local function removePlayerESP(player)
+    if player.Character then
+        local character = player.Character
+        local highlight = character:FindFirstChild("PlayerHighlight")
+        local label = character:FindFirstChild("UsernameLabel")
+        
+        if highlight then
+            highlight:Destroy()
+        end
+        if label then
+            label:Destroy()
+        end
+    end
+end
+
+-- Function to update player ESP based on team check
+local function updatePlayerESP()
+    for _, player in ipairs(players:GetPlayers()) do
+        if espEnabled then
+            -- Apply team check if enabled
+            if teamCheckEnabled then
+                -- Only show ESP for enemies
+                if player.Team ~= players.LocalPlayer.Team then
+                    addPlayerESP(player)
+                else
+                    removePlayerESP(player) -- Remove ESP for allies
+                end
+            else
+                -- Show ESP for all players when team check is disabled
+                addPlayerESP(player)
+            end
+        else
+            removePlayerESP(player)
+        end
+    end
+end
+
+-- Apply ESP to new players joining the game
+players.PlayerAdded:Connect(function(player)
+    if espEnabled then
+        -- Add ESP to the new player
+        addPlayerESP(player)
+    end
+end)
+
+-- Apply ESP to existing players already in the game
+for _, player in pairs(players:GetPlayers()) do
+    addPlayerESP(player)
+end
+
+-- Function to get the closest enemy to the player's cursor
+local function getClosestEnemy()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, player in pairs(players:GetPlayers()) do
+        if player ~= players.LocalPlayer and player.Team ~= players.LocalPlayer.Team and player.Character and player.Character:FindFirstChild("Head") then
+            local character = player.Character
+            local head = character.Head
+            local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+
+            if onScreen then
+                local mousePos = userInput:GetMouseLocation()
+                local distance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                
+                if distance < shortestDistance and distance <= aimbotRange then
+                    shortestDistance = distance
+                    closestPlayer = player
+                end
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+-- Function to lock onto the closest enemy's head
+local function lockOntoEnemy()
+    if lockedEnemy and lockedEnemy.Character and lockedEnemy.Character:FindFirstChild("Head") then
+        local head = lockedEnemy.Character.Head
+        workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, head.Position)
+    else
+        -- If the locked enemy is no longer valid, reset the state
+        lockedEnemy = nil
+        aimbotActive = false
+    end
+end
+
+-- Toggle aimbot state when "E" is pressed
+userInput.InputBegan:Connect(function(input)
+    if input.KeyCode == aimbotKey then
+        if aimbotActive then
+            -- Disable aimbot
+            lockedEnemy = nil
+            aimbotActive = false
+            Fluent:Notify({
+                Title = "Aimbot",
+                Content = "Aimbot deactivated.",
+                Duration = 3
+            })
+        else
+            -- Enable aimbot and find the closest enemy
+            lockedEnemy = getClosestEnemy()
+            if lockedEnemy then
+                aimbotActive = true
+                Fluent:Notify({
+                    Title = "Aimbot",
+                    Content = "Aimbot activated.",
+                    Duration = 3
+                })
+            end
+        end
+    end
+end)
+
+-- Update camera position to keep it locked onto the enemy's head
+runService.RenderStepped:Connect(function()
+    if aimbotActive and lockedEnemy then
+        lockOntoEnemy()
+    end
+end)
+
+-- Adding toggles and features to the Combat Tab
+Tabs.Combat:AddToggle("Aimbot", {Title = "Aimbot", Default = false}):OnChanged(function(state)
+    aimbotEnabled = state
+    Fluent:Notify({
+        Title = "Aimbot",
+        Content = aimbotEnabled and "Aimbot enabled." or "Aimbot disabled.",
+        Duration = 3
+    })
+end)
+
+-- Adding toggles and color picker to the Visual Tab
+Tabs.Visual:AddToggle("PlayerESP", {Title = "Player ESP (with Distance & Teams)", Default = false}):OnChanged(function(state)
+    espEnabled = state
+    updatePlayerESP()
+    Fluent:Notify({
+        Title = "Player ESP",
+        Content = espEnabled and "Player ESP enabled." or "Player ESP disabled.",
+        Duration = 3
+    })
+end)
+
+Tabs.Visual:AddToggle("TeamCheck", {Title = "Team Check (Only Show Enemies)", Default = false}):OnChanged(function(state)
+    teamCheckEnabled = state
+    updatePlayerESP()
+    Fluent:Notify({
+        Title = "Team Check",
+        Content = teamCheckEnabled and "Team check enabled." or "Team check disabled.",
+        Duration = 3
+    })
+end)
+
+Tabs.Visual:AddToggle("UseTeamColor", {Title = "Use Team Color", Default = true}):OnChanged(function(state)
+    useTeamColor = state
+    updatePlayerESP()
+    Fluent:Notify({
+        Title = "ESP Color",
+        Content = useTeamColor and "Using team color for ESP." or "Using custom color for ESP.",
+        Duration = 3
+    })
+end)
+
+Tabs.Visual:AddToggle("ShowNameAndDistance", {Title = "Show Name and Distance", Default = true}):OnChanged(function(state)
+    showNameAndDistance = state
+    updatePlayerESP()
+    Fluent:Notify({
+        Title = "Name/Distance Display",
+        Content = showNameAndDistance and "Showing name and distance." or "Hiding name and distance.",
+        Duration = 3
+    })
+end)
+
+Tabs.Visual:AddColorpicker("ESPColor", {
+    Title = "ESP Color",
+    Default = espColor,
+    Transparency = 0
+}):OnChanged(function(color)
+    espColor = color
+    if not useTeamColor then
+        updatePlayerESP()
+    end
+end)
+
+-- Add a label to the Credit tab
+Tabs.Credit:AddParagraph({
+    Title = "Credits",
+    Content = "Script by dawid\nFluent UI version " .. Fluent.Version
+})
+
+-- Set up SaveManager and InterfaceManager
+InterfaceManager:SetLibrary(Fluent)
+SaveManager:SetLibrary(Fluent)
+
+InterfaceManager:SetFolder("FluentScriptHub")
+SaveManager:SetFolder("FluentScriptHub/specific-game")
+
+-- Initial setup complete
+Window:SelectTab(1)
+
+Fluent:Notify({
+    Title = "Fluent",
+    Content = "The script has been loaded.",
+    Duration = 8
+})
+
+SaveManager:LoadAutoloadConfig()
