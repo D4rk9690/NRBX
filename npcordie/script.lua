@@ -374,6 +374,41 @@ Tabs.Main:AddToggle("LegitAutoTask", {Title = "Legit Auto Task Completion", Defa
     toggleLegitAutoTask(state)
 end)
 
+-- Function to remove duplicate NPC models
+local function removeDuplicateNPCs()
+    local userModels = {}
+
+    for _, model in ipairs(workspace:GetChildren()) do
+        if model:IsA("Model") and model:FindFirstChild("Animations") then
+            for _, player in ipairs(players:GetPlayers()) do
+                if model.Name == player.Name then
+                    if userModels[player.Name] then
+                        model:Destroy()
+                        print("Removed duplicate NPC model for user: " .. player.Name)
+                    else
+                        userModels[player.Name] = model
+                    end
+                end
+            end
+        end
+    end
+
+    Fluent:Notify({
+        Title = "Remove NPC",
+        Content = "Duplicate NPCs check and cleanup complete.",
+        Duration = 5
+    })
+end
+
+-- Adding buttons and toggles to the Main Tab
+Tabs.Main:AddButton({
+    Title = "Remove NPC",
+    Description = "Remove duplicate NPC models based on player usernames.",
+    Callback = function()
+        removeDuplicateNPCs()
+    end
+})
+
 -- Adding toggles to the Visual Tab
 Tabs.Visual:AddToggle("PlayerESP", {Title = "Player ESP (with Distance & Teams)", Default = false}):OnChanged(function(state)
     espEnabled = state
