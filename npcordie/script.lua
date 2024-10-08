@@ -29,8 +29,67 @@ local Tabs = {
 local espEnabled = false
 local npcEspEnabled = false
 local autoTaskEnabled = false
+local instantInteractionEnabled = false
 local selectedPlayer
 
+
+
+
+-- Function to make interactions instant
+local function makeInteractionInstant()
+    -- Loop through all ProximityPrompts in the workspace
+    for _, prompt in ipairs(workspace:GetDescendants()) do
+        if prompt:IsA("ProximityPrompt") then
+            -- Set the hold duration to zero
+            prompt.HoldDuration = 0
+
+            -- Automatically trigger the prompt when the player is in range
+            prompt.Triggered:Connect(function(player)
+                if player == players.LocalPlayer and instantInteractionEnabled then
+                    prompt:InputHoldBegin()
+                    wait(0.1)  -- Small delay to simulate holding, you can reduce further if needed
+                    prompt:InputHoldEnd()
+                end
+            end)
+        end
+    end
+end
+
+-- Monitor for new ProximityPrompts being added dynamically
+workspace.DescendantAdded:Connect(function(descendant)
+    if descendant:IsA("ProximityPrompt") then
+        makeInteractionInstant()
+    end
+end)
+
+-- Function to toggle instant interaction
+local function toggleInstantInteraction(state)
+    instantInteractionEnabled = state
+    if instantInteractionEnabled then
+        makeInteractionInstant() -- Call the function to apply the modifications
+        Fluent:Notify({
+            Title = "Instant Interaction",
+            Content = "Instant Interaction enabled.",
+            Duration = 3
+        })
+    else
+        Fluent:Notify({
+            Title = "Instant Interaction",
+            Content = "Instant Interaction disabled.",
+            Duration = 3
+        })
+    end
+end
+
+-- Adding a toggle for Instant Interaction to the Main Tab
+Tabs.Main:AddToggle("InstantInteraction", {Title = "Instant Interaction", Default = false}):OnChanged(function(state)
+    toggleInstantInteraction(state)
+end)
+
+-- Other existing code...
+
+-- Call the function to update all existing ProximityPrompts
+makeInteractionInstant()
 
 -- Function to refresh player list in the dropdown
 local function getPlayerNames()
