@@ -247,17 +247,31 @@ local function updateNPCESP()
     end
 end
 
--- Function to gradually move the player to a target position
+-- Store connections in a separate table
+local connectionStore = {}
+
+-- Function to gradually move the player to a target position with obstacle avoidance
 local function walkToPosition(targetPosition)
     local character = players.LocalPlayer.Character
     if character then
         local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
         local humanoid = character:FindFirstChildOfClass("Humanoid")
+        
         if humanoidRootPart and humanoid then
+            -- Disconnect any previous path connections if they exist
+            if connectionStore.reachedConnection then
+                connectionStore.reachedConnection:Disconnect()
+                connectionStore.reachedConnection = nil
+            end
+            if connectionStore.blockedConnection then
+                connectionStore.blockedConnection:Disconnect()
+                connectionStore.blockedConnection = nil
+            end
+
             -- Calculate the path
             local path = pathfindingService:CreatePath({
-                AgentRadius = 2,
-                AgentHeight = 5,
+                AgentRadius = 1.5,  -- Adjust to match the character's width
+                AgentHeight = 5,    -- Adjust to match the character's height
                 AgentCanJump = true,
                 AgentCanClimb = true,
                 AgentJumpHeight = 7,
@@ -265,8 +279,11 @@ local function walkToPosition(targetPosition)
             })
 
             -- Compute the path and check if it is successful
-            path:ComputeAsync(humanoidRootPart.Position, targetPosition)
-            if path.Status == Enum.PathStatus.Success then
+            local success, message = pcall(function()
+                path:ComputeAsync(humanoidRootPart.Position, targetPosition)
+            end)
+
+            if success and path.Status == Enum.PathStatus.Success then
                 local waypoints = path:GetWaypoints()
 
                 -- Visualize the waypoints for debugging (optional)
@@ -282,24 +299,71 @@ local function walkToPosition(targetPosition)
                     part.Parent = workspace
 
                     -- Auto-destroy the debug part after 5 seconds
-                    game:GetService("Debris"):AddItem(part, 10)
+                    game:GetService("Debris"):AddItem(part, 1)
                 end
 
-                for _, waypoint in ipairs(waypoints) do
-                    -- Move to each waypoint in the path
+                -- Function to move to each waypoint and handle obstacles
+                local function moveToWaypoint(index)
+                    if index > #waypoints then
+                        print("Path completed.")
+                        return
+                    end
+
+                    local waypoint = waypoints[index]
+                    
+                    -- Jump if the waypoint requires it
+                    if waypoint.Action == Enum.PathWaypointAction.Jump then
+                        humanoid.Jump = true
+                    end
+
+                    -- Move to the waypoint
                     humanoid:MoveTo(waypoint.Position)
 
-                    -- Wait until the character reaches the waypoint
-                    local success = humanoid.MoveToFinished:Wait()
-                    if not success then
-                        warn("Failed to reach waypoint. Retrying...")
-                        humanoid:MoveTo(waypoint.Position) -- Retry moving to the waypoint
-                    end
+                    -- Wait for the character to reach the waypoint or get blocked
+                    connectionStore.reachedConnection = humanoid.MoveToFinished:Connect(function(reached)
+                        -- Disconnect connections to prevent conflicts
+                        if connectionStore.reachedConnection then
+                            connectionStore.reachedConnection:Disconnect()
+                            connectionStore.reachedConnection = nil
+                        end
+                        if connectionStore.blockedConnection then
+                            connectionStore.blockedConnection:Disconnect()
+                            connectionStore.blockedConnection = nil
+                        end
+                        
+                        if reached then
+                            moveToWaypoint(index + 1) -- Proceed to the next waypoint
+                        else
+                            print("Failed to reach waypoint. Recalculating path...")
+                            walkToPosition(targetPosition) -- Recalculate path if blocked
+                        end
+                    end)
                 end
 
-                print("Path completed.")
+                -- Event listener for when the path gets blocked
+                connectionStore.blockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+                    print("Path blocked at waypoint: ", blockedWaypointIndex)
+                    if connectionStore.reachedConnection then
+                        connectionStore.reachedConnection:Disconnect()
+                        connectionStore.reachedConnection = nil
+                    end
+                    if connectionStore.blockedConnection then
+                        connectionStore.blockedConnection:Disconnect()
+                        connectionStore.blockedConnection = nil
+                    end
+                    walkToPosition(targetPosition) -- Recalculate path if blocked
+                end)
+
+                -- Start moving to the first waypoint
+                moveToWaypoint(1)
             else
-                warn("Path not found or incomplete. Status: ", path.Status)
+                warn("Path not found or incomplete. Status: ", path.Status or message)
+                -- Handle NoPath status gracefully
+                Fluent:Notify({
+                    Title = "Pathfinding Error",
+                    Content = "Unable to find a path to the target position. Make sure the target is reachable.",
+                    Duration = 3
+                })
             end
         else
             warn("HumanoidRootPart or Humanoid not found.")
@@ -328,18 +392,56 @@ local function legitAutoCompleteTasks()
                 if mainFolder then
                     local tasksFolder = mainFolder:FindFirstChild("Tasks")
                     if tasksFolder then
+                        local importantTaskModel = nil
+                        local randomTaskModel = nil
+
+                        -- Iterate through all tasks to find one with TargetTaskHighlight or pick a random one
                         for _, taskModel in ipairs(tasksFolder:GetChildren()) do
                             if taskModel:IsA("Model") then
-
-                                local targetTaskHighlight = taskModel:FindFirstChild("TargetTaskHighlight")
-                            if targetTaskHighlight then
-                                local teleportPosition = taskModel:FindFirstChild("Hitbox")
-                                if teleportPosition then
-                                    walkToPosition(teleportPosition.Position)
-                                    wait(1)
-                                    break
+                                if taskModel:FindFirstChild("TargetTaskHighlight") then
+                                    importantTaskModel = taskModel
+                                    break -- Prioritize the important task
+                                elseif not randomTaskModel then
+                                    randomTaskModel = taskModel -- Select a random task as a fallback
                                 end
                             end
+                        end
+
+                        -- If an important task is available, prioritize it
+                        if importantTaskModel then
+                            local taskPosition = importantTaskModel:FindFirstChild("Hitbox")
+                            if taskPosition and taskPosition.Position then
+                                -- Calculate the distance to the important task position
+                                local distance = (humanoidRootPart.Position - taskPosition.Position).Magnitude
+
+                                -- Set a proximity threshold (distance in studs)
+                                local proximityThreshold = 5
+
+                                -- If the player is far enough, move to the important task position
+                                if distance > proximityThreshold then
+                                    walkToPosition(taskPosition.Position)
+                                    wait(1) -- Small wait time before checking again
+                                else
+                                    print("Close enough to the important task, stopping movement.")
+                                end
+                            end
+                        -- If no important task is available, move to a random task
+                        elseif randomTaskModel then
+                            local taskPosition = randomTaskModel:FindFirstChild("Hitbox")
+                            if taskPosition and taskPosition.Position then
+                                -- Calculate the distance to the random task position
+                                local distance = (humanoidRootPart.Position - taskPosition.Position).Magnitude
+
+                                -- Set a proximity threshold (distance in studs)
+                                local proximityThreshold = 5
+
+                                -- If the player is far enough, move to the random task position
+                                if distance > proximityThreshold then
+                                    walkToPosition(taskPosition.Position)
+                                    wait(1) -- Small wait time before checking again
+                                else
+                                    print("Close enough to the random task, stopping movement.")
+                                end
                             end
                         end
                     end
@@ -349,6 +451,9 @@ local function legitAutoCompleteTasks()
         wait(2)
     end
 end
+
+
+
 
 -- Function to toggle legit auto task completion
 local function toggleLegitAutoTask(state)
