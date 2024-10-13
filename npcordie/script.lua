@@ -94,6 +94,47 @@ Tabs.Main:AddButton({
     end
 })
 
+-- State variable for Auto Interact
+local autoInteractEnabled = false
+
+-- Function for Auto Interact
+local function autoInteract()
+    while autoInteractEnabled do
+        for _, prompt in ipairs(workspace:GetDescendants()) do
+            if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                -- Check if the parent has a PrimaryPart or a specific part to get the position
+                local parentModel = prompt.Parent
+                local interactPart = parentModel:IsA("Model") and parentModel.PrimaryPart or parentModel:FindFirstChildWhichIsA("BasePart")
+
+                if interactPart then
+                    local distance = (players.LocalPlayer.Character.HumanoidRootPart.Position - interactPart.Position).Magnitude
+                    if distance <= prompt.MaxActivationDistance then
+                        prompt:InputHoldBegin()
+                        wait(0.1)  -- Simulate hold
+                        prompt:InputHoldEnd()
+                    end
+                end
+            end
+        end
+        wait(0.5) -- Check every 0.5 seconds for new prompts
+    end
+end
+
+-- Function to toggle Auto Interact
+local function toggleAutoInteract(state)
+    autoInteractEnabled = state
+    if autoInteractEnabled then
+        Fluent:Notify({ Title = "Auto Interact", Content = "Auto Interact enabled.", Duration = 3 })
+        autoInteract()  -- Start auto interacting
+    else
+        Fluent:Notify({ Title = "Auto Interact", Content = "Auto Interact disabled.", Duration = 3 })
+    end
+end
+
+-- Adding a toggle for Auto Interact to the Main Tab
+Tabs.Main:AddToggle("AutoInteract", { Title = "Auto Interact", Default = false }):OnChanged(toggleAutoInteract)
+
+
 Tabs.Main:AddParagraph({
     Title = "Autofarms",
     Content = "Get rich while being AFK."
