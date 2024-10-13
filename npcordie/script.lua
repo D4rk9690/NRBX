@@ -10,7 +10,7 @@ local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.
 
 -- Create a new window with a very dark theme and no transparency
 local Window = Fluent:CreateWindow({
-    Title = "[🍂] Be NPC or DIE!💢 ",
+    Title = "[🍂] Be NPC or DIE! 💢 ",
     SubTitle = "by No_rbex",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
@@ -20,10 +20,10 @@ local Window = Fluent:CreateWindow({
 })
 
 local Tabs = {
-    Main = Window:AddTab({ Title = "Main", Icon = "" }),
-    Visual = Window:AddTab({ Title = "Visual", Icon = "" }),
-    Statistics = Window:AddTab({ Title = "Statistics", Icon = "bar-chart-2" }), -- New Statistics tab
-    Credit = Window:AddTab({ Title = "Credit", Icon = "" })
+    Main = Window:AddTab({ Title = "Main", Icon = "grid" }),
+    Visual = Window:AddTab({ Title = "Visual", Icon = "eye" }),
+    Statistics = Window:AddTab({ Title = "Statistics", Icon = "bar-chart-2" }), -- Statistics tab
+    Credit = Window:AddTab({ Title = "Credit", Icon = "award" })
 }
 
 local espEnabled = false
@@ -33,6 +33,147 @@ local instantInteractionEnabled = false
 local selectedPlayer
 
 
+local autoFarmEnabled = false
+
+
+-- Function to debug map and modify pathfinding parts
+local function debugMap()
+    -- List of map folder names to check
+    local mapFolders = {
+        "PirateOutpost",
+        "ShoppingMall",
+        "Hotel",
+        "LighthouseCove",
+        "Town",
+        "RailYard",
+        "Office",
+        "Prison"
+    }
+
+    for _, folderName in ipairs(mapFolders) do
+        local mapFolder = workspace:FindFirstChild(folderName)
+        if mapFolder then
+            local pathModifications = mapFolder:FindFirstChild("PathfindingModifications")
+            if pathModifications then
+                for _, part in ipairs(pathModifications:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name == "AntiNPCPart" then
+                        part.Transparency = 0 -- Set opacity to 0 (fully transparent)
+                        part.CanCollide = true -- Enable collision
+                    end
+                end
+                Fluent:Notify({
+                    Title = "Debug Complete",
+                    Content = "Pathfinding modifications applied for " .. folderName,
+                    Duration = 5
+                })
+                return
+            end
+        end
+    end
+
+    Fluent:Notify({
+        Title = "Debug Info",
+        Content = "No relevant map found or no PathfindingModifications folder detected.",
+        Duration = 5
+    })
+end
+
+
+Tabs.Main:AddParagraph({
+    Title = "Features",
+    Content = "Enjoy the easy gameplay."
+})
+
+
+-- Adding a button to the Debug Tab
+Tabs.Main:AddButton({
+    Title = "Check and Debug Map",
+    Description = "Check the current map and modify pathfinding parts.",
+    Callback = function()
+        debugMap()
+    end
+})
+
+Tabs.Main:AddParagraph({
+    Title = "Autofarms",
+    Content = "Get rich while being AFK."
+})
+
+
+-- Function for the new AutoFarm logic
+local function autoFarmTasks()
+    while autoFarmEnabled do
+        local character = players.LocalPlayer.Character
+        if character then
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                local mainFolder = nil
+                for _, folder in ipairs(workspace:GetChildren()) do
+                    if folder:IsA("Folder") and folder.Name ~= "Plots" and folder.Name ~= "Lobby" and folder.Name ~= "Ragdolls" then
+                        mainFolder = folder
+                        break
+                    end
+                end
+
+                if mainFolder then
+                    local tasksFolder = mainFolder:FindFirstChild("Tasks")
+                    if tasksFolder then
+                        local highlightedTask = nil
+
+                        -- Iterate through all tasks to find one with TargetTaskHighlight
+                        for _, task in ipairs(tasksFolder:GetChildren()) do
+                            if task:IsA("Model") and task:FindFirstChild("TargetTaskHighlight") then
+                                highlightedTask = task
+                                break -- Prioritize the task with TargetTaskHighlight
+                            end
+                        end
+
+                        -- If a highlighted task is found, teleport to it
+                        if highlightedTask then
+                            local taskPosition = highlightedTask:FindFirstChild("Hitbox")
+                            if taskPosition and taskPosition.Position then
+                                humanoidRootPart.CFrame = CFrame.new(taskPosition.Position)
+                                wait(1) -- Wait 1 second to simulate task completion
+                            end
+                        else
+                            -- No highlighted task found, teleport to ObbyEndPart
+                            local obbyEndPart = workspace:FindFirstChild("Lobby") and workspace.Lobby:FindFirstChild("Obby") and workspace.Lobby.Obby:FindFirstChild("ObbyEndPart")
+                            if obbyEndPart then
+                                humanoidRootPart.CFrame = obbyEndPart.CFrame
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        wait(2) -- Check for new tasks after 2 seconds
+    end
+end
+
+
+-- Function to toggle AutoFarm
+local function toggleAutoFarm(state)
+    autoFarmEnabled = state
+    if autoFarmEnabled then
+        Fluent:Notify({
+            Title = "AutoFarm",
+            Content = "AutoFarm enabled.",
+            Duration = 3
+        })
+        task.spawn(autoFarmTasks)
+    else
+        Fluent:Notify({
+            Title = "AutoFarm",
+            Content = "AutoFarm disabled.",
+            Duration = 3
+        })
+    end
+end
+
+-- Adding a toggle for AutoFarm to the Main Tab
+Tabs.Main:AddToggle("AutoFarm", {Title = "AutoFarm", Default = false}):OnChanged(function(state)
+    toggleAutoFarm(state)
+end)
 
 
 -- Function to make interactions instant
@@ -582,6 +723,7 @@ Tabs.Credit:AddParagraph({
     Title = "Credits",
     Content = "Script by No_rbex\nBE NPC OR DIE " .. Fluent.Version
 })
+
 
 -- Set up SaveManager and InterfaceManager
 InterfaceManager:SetLibrary(Fluent)
