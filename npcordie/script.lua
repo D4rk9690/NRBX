@@ -11,11 +11,12 @@ local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.
 -- Create a new window with a very dark theme and no transparency
 local Window = Fluent:CreateWindow({
     Title = "[🍂] Be NPC or DIE! 💢 ",
-    SubTitle = "by No_rbex",
+    SubTitle = "by NRBX",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
-    Theme = "Dark",
+    Theme = "Darker",
+    Acrylic = true,
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
@@ -26,19 +27,29 @@ local Tabs = {
     Credit = Window:AddTab({ Title = "Credit", Icon = "award" })
 }
 
+-- OPTIONS
 local espEnabled = false
 local npcEspEnabled = false
 local autoTaskEnabled = false
 local instantInteractionEnabled = false
 local selectedPlayer
-
-
 local autoFarmEnabled = false
+local autoInteractEnabled = false
 
 
--- Function to debug map and modify pathfinding parts
+
+
+
+
+
+-- 
+-- --
+-- DEBUG ANTI NPC PART
+-- --
+-- 
+
+
 local function debugMap()
-    -- List of map folder names to check
     local mapFolders = {
         "PirateOutpost",
         "ShoppingMall",
@@ -79,25 +90,14 @@ local function debugMap()
 end
 
 
-Tabs.Main:AddParagraph({
-    Title = "Features",
-    Content = "Enjoy the easy gameplay."
-})
 
 
--- Adding a button to the Debug Tab
-Tabs.Main:AddButton({
-    Title = "Check and Debug Map",
-    Description = "Check the current map and modify pathfinding parts.",
-    Callback = function()
-        debugMap()
-    end
-})
+-- 
+-- --
+-- AUTO INTERACT
+-- --
+-- 
 
--- State variable for Auto Interact
-local autoInteractEnabled = false
-
--- Function for Auto Interact
 local function autoInteract()
     while autoInteractEnabled do
         for _, prompt in ipairs(workspace:GetDescendants()) do
@@ -120,28 +120,25 @@ local function autoInteract()
     end
 end
 
--- Function to toggle Auto Interact
 local function toggleAutoInteract(state)
     autoInteractEnabled = state
     if autoInteractEnabled then
         Fluent:Notify({ Title = "Auto Interact", Content = "Auto Interact enabled.", Duration = 3 })
-        autoInteract()  -- Start auto interacting
+        autoInteract()
     else
         Fluent:Notify({ Title = "Auto Interact", Content = "Auto Interact disabled.", Duration = 3 })
     end
 end
 
--- Adding a toggle for Auto Interact to the Main Tab
-Tabs.Main:AddToggle("AutoInteract", { Title = "Auto Interact", Default = false }):OnChanged(toggleAutoInteract)
 
 
-Tabs.Main:AddParagraph({
-    Title = "Autofarms",
-    Content = "Get rich while being AFK."
-})
+-- 
+-- --
+-- AutoFarm TP
+-- --
+-- 
 
 
--- Function for the new AutoFarm logic
 local function autoFarmTasks()
     while autoFarmEnabled do
         local character = players.LocalPlayer.Character
@@ -211,10 +208,14 @@ local function toggleAutoFarm(state)
     end
 end
 
--- Adding a toggle for AutoFarm to the Main Tab
-Tabs.Main:AddToggle("AutoFarm", {Title = "AutoFarm", Default = false}):OnChanged(function(state)
-    toggleAutoFarm(state)
-end)
+
+
+
+-- 
+-- --
+-- INTANT INTERACT
+-- --
+-- 
 
 
 -- Function to make interactions instant
@@ -263,17 +264,15 @@ local function toggleInstantInteraction(state)
     end
 end
 
--- Adding a toggle for Instant Interaction to the Main Tab
-Tabs.Main:AddToggle("InstantInteraction", {Title = "Instant Interaction", Default = false}):OnChanged(function(state)
-    toggleInstantInteraction(state)
-end)
 
--- Other existing code...
 
--- Call the function to update all existing ProximityPrompts
-makeInteractionInstant()
 
--- Function to refresh player list in the dropdown
+-- 
+-- --
+-- UPDATE PLAYER LIST
+-- --
+-- 
+
 local function getPlayerNames()
     local playerNames = {}
     for _, player in ipairs(players:GetPlayers()) do
@@ -282,152 +281,15 @@ local function getPlayerNames()
     return playerNames
 end
 
--- Function to get the team color for a player
-local function getTeamColor(player)
-    if player.Team then
-        if player.Team.Name == "Criminal" then
-            return Color3.fromRGB(255, 0, 0) -- Red color for criminals
-        else
-            return player.Team.TeamColor.Color
-        end
-    else
-        return Color3.fromRGB(255, 255, 255) -- White for players without a team
-    end
-end
 
--- Function to create a BillboardGui with the username and distance
-local function addUsernameLabel(model, player)
-    if not model.PrimaryPart then
-        model.PrimaryPart = model:FindFirstChildWhichIsA("BasePart") or model:FindFirstChildWhichIsA("Part")
-    end
-    
-    if model.PrimaryPart then
-        local billboard = Instance.new("BillboardGui")
-        billboard.Size = UDim2.new(0, 100, 0, 50)
-        billboard.AlwaysOnTop = true
-        billboard.Adornee = model.PrimaryPart
-        billboard.Name = "UsernameLabel"
-        billboard.Parent = model
 
-        local textLabel = Instance.new("TextLabel")
-        textLabel.Size = UDim2.new(1, 0, 1, 0)
-        textLabel.BackgroundTransparency = 1
-        textLabel.TextColor3 = getTeamColor(player)
-        textLabel.Font = Enum.Font.SourceSansBold
-        textLabel.TextScaled = true
-        textLabel.Parent = billboard
 
-        local function updateLabel()
-            local distance = (model.PrimaryPart.Position - players.LocalPlayer.Character.PrimaryPart.Position).Magnitude
-            textLabel.Text = string.format("%s | %.0f studs", player.Name, distance)
-        end
+-- 
+-- --
+-- LEGIT AUTO COMPLETE TASK
+-- --
+-- 
 
-        updateLabel()
-        game:GetService("RunService").Heartbeat:Connect(updateLabel)
-    end
-end
-
--- Function to create a BillboardGui with the NPC name and distance
-local function addNPCEsp(model)
-    if not model.PrimaryPart then
-        model.PrimaryPart = model:FindFirstChildWhichIsA("BasePart") or model:FindFirstChildWhichIsA("Part")
-    end
-    
-    if model.PrimaryPart then
-        local billboard = Instance.new("BillboardGui")
-        billboard.Size = UDim2.new(0, 100, 0, 50)
-        billboard.AlwaysOnTop = true
-        billboard.Adornee = model.PrimaryPart
-        billboard.Name = "NPCLabel"
-        billboard.Parent = model
-
-        local textLabel = Instance.new("TextLabel")
-        textLabel.Size = UDim2.new(1, 0, 1, 0)
-        textLabel.BackgroundTransparency = 1
-        textLabel.TextColor3 = Color3.new(1, 0, 0) -- Red color for NPCs
-        textLabel.Font = Enum.Font.SourceSansBold
-        textLabel.TextScaled = true
-        textLabel.Parent = billboard
-
-        local function updateLabel()
-            local distance = (model.PrimaryPart.Position - players.LocalPlayer.Character.PrimaryPart.Position).Magnitude
-            textLabel.Text = string.format("NPC | %.0f studs", distance)
-        end
-
-        updateLabel()
-        game:GetService("RunService").Heartbeat:Connect(updateLabel)
-    end
-end
-
--- Function to update player ESP
-local function updatePlayerESP()
-    for _, model in ipairs(workspace:GetChildren()) do
-        for _, player in ipairs(players:GetPlayers()) do
-            if model:IsA("Model") and model.Name == player.Name and not model:FindFirstChild("Animations") then
-                local existingLabel = model:FindFirstChild("UsernameLabel")
-                local existingHighlight = model:FindFirstChild("PlayerGlow")
-
-                if espEnabled then
-                    if not existingLabel then
-                        addUsernameLabel(model, player)
-                    end
-                    
-                    if not existingHighlight then
-                        local highlight = Instance.new("Highlight")
-                        highlight.Adornee = model
-                        highlight.Name = "PlayerGlow"
-                        highlight.Parent = model
-                        highlight.FillColor = getTeamColor(player)
-                        highlight.OutlineColor = Color3.new(0, 0, 0) -- Black outline
-                        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                    else
-                        existingHighlight.FillColor = getTeamColor(player)
-                    end
-                else
-                    if existingLabel then
-                        existingLabel:Destroy()
-                    end
-                    if existingHighlight then
-                        existingHighlight:Destroy()
-                    end
-                end
-            end
-        end
-    end
-end
-
--- Function to update NPC ESP
-local function updateNPCESP()
-    for _, model in ipairs(workspace:GetChildren()) do
-        if model:IsA("Model") and model:FindFirstChild("Animations") then
-            local existingLabel = model:FindFirstChild("NPCLabel")
-            local existingHighlight = model:FindFirstChild("NPCGlow")
-
-            if npcEspEnabled then
-                if not existingLabel then
-                    addNPCEsp(model)
-                end
-                
-                if not existingHighlight then
-                    local highlight = Instance.new("Highlight")
-                    highlight.Adornee = model
-                    highlight.Name = "NPCGlow"
-                    highlight.Parent = model
-                    highlight.FillColor = Color3.new(1, 0, 0) -- Red color for NPCs
-                    highlight.OutlineColor = Color3.new(0, 0, 0) -- Black outline
-                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                end
-            else
-                if existingLabel then
-                    existingLabel:Destroy()
-                end
-                if existingHighlight then
-                    existingHighlight:Destroy()
-                end
-            end
-        end
-    end
-end
 
 -- Store connections in a separate table
 local connectionStore = {}
@@ -634,9 +496,6 @@ local function legitAutoCompleteTasks()
     end
 end
 
-
-
-
 -- Function to toggle legit auto task completion
 local function toggleLegitAutoTask(state)
     autoTaskEnabled = state
@@ -656,12 +515,15 @@ local function toggleLegitAutoTask(state)
     end
 end
 
--- Adding a toggle for Legit Auto Task to the Main Tab
-Tabs.Main:AddToggle("LegitAutoTask", {Title = "Legit Auto Task Completion", Default = false}):OnChanged(function(state)
-    toggleLegitAutoTask(state)
-end)
 
--- Function to remove duplicate NPC models
+
+
+-- 
+-- --
+-- REMOVE DUPLICATE NPC
+-- --
+-- 
+
 local function removeDuplicateNPCs()
     local userModels = {}
 
@@ -687,7 +549,41 @@ local function removeDuplicateNPCs()
     })
 end
 
--- Adding buttons and toggles to the Main Tab
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- 
+-- --
+-- FEATURES 
+-- --
+-- 
+
+Tabs.Main:AddParagraph({
+    Title = "Features",
+    Content = "Enjoy the easy gameplay."
+})
+
+
+
+
+
+-- Remove duplicate NPC
 Tabs.Main:AddButton({
     Title = "Remove NPC",
     Description = "Remove duplicate NPC models based on player usernames.",
@@ -696,26 +592,327 @@ Tabs.Main:AddButton({
     end
 })
 
--- Adding toggles to the Visual Tab
-Tabs.Visual:AddToggle("PlayerESP", {Title = "Player ESP (with Distance & Teams)", Default = false}):OnChanged(function(state)
-    espEnabled = state
-    updatePlayerESP()
-    Fluent:Notify({
-        Title = "Player ESP",
-        Content = espEnabled and "Player ESP enabled." or "Player ESP disabled.",
-        Duration = 3
-    })
+
+-- Instant interaction
+Tabs.Main:AddToggle("InstantInteraction", {Title = "Instant Interaction", Default = false}):OnChanged(function(state)
+    toggleInstantInteraction(state)
 end)
 
-Tabs.Visual:AddToggle("NPCESP", {Title = "NPC ESP", Default = false}):OnChanged(function(state)
-    npcEspEnabled = state
-    updateNPCESP()
-    Fluent:Notify({
-        Title = "NPC ESP",
-        Content = npcEspEnabled and "NPC ESP enabled." or "NPC ESP disabled.",
-        Duration = 3
-    })
+
+
+
+
+-- Debug Anti NPC
+Tabs.Main:AddButton({
+    Title = "Check and Debug Map",
+    Description = "Check the current map and modify pathfinding parts.",
+    Callback = function()
+        debugMap()
+    end
+})
+
+
+-- Auto interact
+Tabs.Main:AddToggle("AutoInteract", { Title = "Auto Interact", Default = false }):OnChanged(toggleAutoInteract)
+
+
+Tabs.Main:AddParagraph({
+    Title = "Autofarms",
+    Content = "Get rich while being AFK."
+})
+
+
+
+-- Auto farm tp
+Tabs.Main:AddToggle("AutoFarm", {Title = "AutoFarm", Default = false}):OnChanged(function(state)
+    toggleAutoFarm(state)
 end)
+
+
+-- Legit auto complete task
+Tabs.Main:AddToggle("LegitAutoTask", {Title = "Legit Auto Task Completion", Default = false}):OnChanged(function(state)
+    toggleLegitAutoTask(state)
+end)
+
+
+
+
+
+local esp = false -- You can set this to true or false to turn the ESP on or off
+local checkInterval = 5 -- Interval (in seconds) to recheck for tasks
+local Name = false -- Toggle to display the player's name
+local Distance = false -- Toggle to display the distance to the player
+local Line = false -- Toggle to display the ESP line (tracer)
+local HealthBar = false -- Toggle to display the player's health bar
+
+local mapFolders = {
+    "PirateOutpost",
+    "ShoppingMall",
+    "Hotel",
+    "LighthouseCove",
+    "Town",
+    "RailYard",
+    "Office",
+    "Prison"
+}
+
+local camera = game.Workspace.CurrentCamera
+local runService = game:GetService("RunService")
+
+-- Function to create ESP for a specific player part
+local function createESP(target, hasTask, humanoid, playerName)
+    if not esp then return end -- If ESP is disabled, don't create any ESP
+
+    local color = hasTask and Color3.new(0, 1, 0) or Color3.new(1, 0, 0) -- Green if task exists, Red otherwise
+
+    -- Box for ESP
+    local box = Drawing.new("Square")
+    box.Visible = false
+    box.Thickness = 2
+    box.Transparency = 1
+    box.Color = color
+
+    -- Text label for player name
+    local nameTag = Drawing.new("Text")
+    nameTag.Visible = false
+    nameTag.Center = true
+    nameTag.Outline = false
+    nameTag.Size = 18
+    nameTag.Font = Drawing.Fonts.Monospace -- Monospace font for code-like appearance
+    nameTag.Color = color
+    nameTag.Text = playerName
+
+    -- Text label for distance
+    local distanceTag = Drawing.new("Text")
+    distanceTag.Visible = false
+    distanceTag.Center = true
+    distanceTag.Outline = false
+    distanceTag.Size = 16
+    distanceTag.Font = Drawing.Fonts.Monospace
+    distanceTag.Color = color
+
+    -- ESP Line (Tracer)
+    local line = Drawing.new("Line")
+    line.Visible = false
+    line.Color = color
+    line.Thickness = 1
+
+    -- Health Bar
+    local healthBarBackground = Drawing.new("Square")
+    local healthBar = Drawing.new("Square")
+    healthBarBackground.Visible = false
+    healthBar.Visible = false
+    healthBarBackground.Color = Color3.new(0, 0, 0) -- Black background for the health bar
+    healthBar.Color = Color3.new(0, 1, 0) -- Green for health
+
+    -- Update ESP position and visibility every frame
+    local connection
+    connection = runService.RenderStepped:Connect(function()
+        if target and target.Parent then
+            local screenPosition, onScreen = camera:WorldToViewportPoint(target.Position)
+
+            if onScreen then
+                local targetSize = target.Size * 0.5
+                local distance = (camera.CFrame.Position - target.Position).Magnitude
+
+                -- Set box size and position based on distance
+                box.Size = Vector2.new(1000 / distance, 1000 / distance)
+                box.Position = Vector2.new(screenPosition.X - box.Size.X / 2, screenPosition.Y - box.Size.Y / 2)
+                box.Visible = true
+
+                -- Update player name position and visibility
+                if Name then
+                    nameTag.Position = Vector2.new(screenPosition.X, screenPosition.Y - box.Size.Y / 2 - 15) -- Slightly above the box
+                    nameTag.Visible = true
+                end
+
+                -- Update distance position and visibility
+                if Distance then
+                    distanceTag.Text = string.format("Distance: %d", math.floor(distance))
+                    distanceTag.Position = Vector2.new(screenPosition.X, screenPosition.Y + box.Size.Y / 2 + 5) -- Slightly below the box
+                    distanceTag.Visible = true
+                end
+
+                -- Update ESP line (tracer)
+                if Line then
+                    line.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y) -- From bottom center of the screen
+                    line.To = Vector2.new(screenPosition.X, screenPosition.Y) -- To the target
+                    line.Visible = true
+                end
+
+                -- Update health bar
+                if HealthBar then
+                    healthBarBackground.Visible = true
+                    healthBar.Visible = true
+
+                    healthBarBackground.Size = Vector2.new(5, 50) -- Fixed size for background
+                    healthBarBackground.Position = Vector2.new(screenPosition.X - 50, screenPosition.Y - 25)
+
+                    local healthPercent = humanoid.Health / humanoid.MaxHealth
+                    healthBar.Size = Vector2.new(5, 50 * healthPercent) -- Health bar size based on health percentage
+                    healthBar.Position = healthBarBackground.Position
+                end
+
+            else
+                box.Visible = false
+                nameTag.Visible = false
+                distanceTag.Visible = false
+                line.Visible = false
+                healthBar.Visible = false
+                healthBarBackground.Visible = false
+            end
+        else
+            -- Remove ESP elements when the target is no longer valid
+            box.Visible = false
+            nameTag.Visible = false
+            distanceTag.Visible = false
+            line.Visible = false
+            healthBar.Visible = false
+            healthBarBackground.Visible = false
+            connection:Disconnect() -- Stop updating the ESP once target is invalid
+            box:Remove()
+            nameTag:Remove()
+            distanceTag:Remove()
+            line:Remove()
+            healthBar:Remove()
+            healthBarBackground:Remove()
+        end
+    end)
+
+    return box, nameTag, distanceTag, line, healthBar, healthBarBackground
+end
+
+-- Function to check if the object is a map folder
+local function isMapFolder(obj)
+    return table.find(mapFolders, obj.Name) ~= nil
+end
+
+
+local players = game:GetService("Players") -- Service to get player information
+local localPlayer = players.LocalPlayer -- Reference to the local player
+
+
+-- Function to apply ESP to all players up until a map folder is encountered
+local function applyESPToPlayers()
+    if not esp then return end -- If ESP is disabled, don't apply ESP
+
+    for _, child in ipairs(game.Workspace:GetChildren()) do
+        if isMapFolder(child) then
+            print("Encountered map folder: " .. child.Name .. ", stopping ESP application.")
+            break
+        end
+
+        -- Check if the object is a player model and exclude the local player
+        if child:IsA("Model") and child:FindFirstChild("Humanoid") and players:GetPlayerFromCharacter(child) ~= localPlayer then
+            local humanoid = child:FindFirstChild("Humanoid")
+
+            -- Check if the Task object exists in the player's model
+            local hasTask = child:FindFirstChild("Task") ~= nil
+
+            -- Attempt to find the primary part for ESP (HumanoidRootPart)
+            local primaryPart = child:FindFirstChild("HumanoidRootPart")
+
+            if primaryPart then
+                print("Found HumanoidRootPart for player: " .. child.Name)
+                local espBox, nameTag, distanceTag, line, healthBar, healthBarBackground = createESP(primaryPart, hasTask, humanoid, child.Name)
+
+                -- Remove ESP if the player dies
+                humanoid.Died:Connect(function()
+                    print("Player " .. child.Name .. " has died, removing ESP")
+                    espBox:Remove()
+                    nameTag:Remove()
+                    distanceTag:Remove()
+                    line:Remove()
+                    healthBar:Remove()
+                    healthBarBackground:Remove()
+                end)
+
+                -- Check every 5 seconds if the task status has changed
+                task.spawn(function()
+                    while humanoid and humanoid.Health > 0 do
+                        wait(checkInterval)
+
+                        local currentHasTask = child:FindFirstChild("Task") ~= nil
+                        if espBox then
+                            -- Update the color of the ESP box and text based on the presence of a task
+                            espBox.Color = currentHasTask and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
+                            nameTag.Color = espBox.Color
+                            distanceTag.Color = espBox.Color
+                            line.Color = espBox.Color
+                            healthBar.Color = espBox.Color
+                        end
+                    end
+                end)
+            else
+                warn("No HumanoidRootPart found for player: " .. child.Name)
+            end
+        else
+            -- Skip the local player or non-player objects
+            if players:GetPlayerFromCharacter(child) == localPlayer then
+                print("Skipping local player: " .. child.Name)
+            else
+                warn("Non-player object found: " .. child.Name)
+            end
+        end
+    end
+end
+
+-- Call this function whenever a new map folder is added to workspace
+local function onNewMapFolderAdded()
+    print("A new map folder has been added to Workspace.")
+    applyESPToPlayers()
+end
+
+-- Listen for changes in the workspace, reapply ESP when a map folder is added
+game.Workspace.ChildAdded:Connect(function(child)
+    if isMapFolder(child) then
+        onNewMapFolderAdded()
+    end
+end)
+
+-- Initial ESP application
+if esp then
+    applyESPToPlayers() -- Apply ESP when the game starts
+end
+
+
+
+
+
+Tabs.Visual:AddParagraph({
+    Title = "Players",
+    Content = "Player ESP check NPC or seaker."
+})
+
+
+
+
+-- Esp Box
+Tabs.Visual:AddToggle("BoxESP", {Title = "ESP Box", Default = false}):OnChanged(function(state)
+    esp = state
+end)
+
+
+-- Esp Name
+Tabs.Visual:AddToggle("NameESP", {Title = "ESP Name", Default = false}):OnChanged(function(state)
+    Name = state
+end)
+
+
+
+-- Esp Distance
+Tabs.Visual:AddToggle("DistanceESP", {Title = "ESP Distance", Default = false}):OnChanged(function(state)
+    Distance = state
+end)
+
+
+-- Esp Line
+Tabs.Visual:AddToggle("LineESP", {Title = "ESP Line", Default = false}):OnChanged(function(state)
+    Line = state
+end)
+
+
+
 
 
 
@@ -736,16 +933,67 @@ local CashInput = Tabs.Statistics:AddInput("CashInput", {
     ReadOnly = true -- Prevent user from editing manually
 })
 
+-- Input field to display the cash value
+local NpcKillInput = Tabs.Statistics:AddInput("NpcKillInput", {
+    Title = "NPC kills Value",
+    Default = "Select a player to view how much NPC were killed.",
+    Placeholder = "Will be displayed here",
+    Numeric = true, -- Only allows numbers
+    ReadOnly = true -- Prevent user from editing manually
+})
+
+-- Input field to display the cash value
+local XPInput = Tabs.Statistics:AddInput("XPInput", {
+    Title = "NPC kills Value",
+    Default = "Select a player to view how much NPC were killed.",
+    Placeholder = "Will be displayed here",
+    Numeric = true, -- Only allows numbers
+    ReadOnly = true -- Prevent user from editing manually
+})
+
+-- Input field to display the cash value
+local winAsHiderInput = Tabs.Statistics:AddInput("winAsHiderInput", {
+    Title = "Win as hider Value",
+    Default = "Select a player to view how many win as Hider.",
+    Placeholder = "Will be displayed here",
+    Numeric = true, -- Only allows numbers
+    ReadOnly = true -- Prevent user from editing manually
+})
+
+
+-- Input field to display the cash value
+local TasksCompletedInput = Tabs.Statistics:AddInput("TasksCompletedInput", {
+    Title = "Tasks Completed Value",
+    Default = "Select a player to view how many tasks completed.",
+    Placeholder = "Will be displayed here",
+    Numeric = true, -- Only allows numbers
+    ReadOnly = true -- Prevent user from editing manually
+})
+
 PlayerDropdown:OnChanged(function(selected)
     local selectedPlayer = selected
     local player = players:FindFirstChild(selectedPlayer)
     if player and player:FindFirstChild("Data") and player.Data:FindFirstChild("Cash") then
         local cashValue = player.Data.Cash.Value
+        local xpValue = player.Data.XP.Value
+        local npckillValue = player.Data.Statistics.NPCsShot.Value
+        local winAsHider = player.Data.Statistics.WinsAsHider.Value
+        local TasksCompleted = player.Data.Statistics.TasksCompleted.Value
+
+
         -- Update the input field with the player's cash value
         CashInput:SetValue(tostring(cashValue))
+        XPInput:SetValue(tostring(xpValue))
+        winAsHiderInput:SetValue(tostring(winAsHider))
+        NpcKillInput:SetValue(tostring(npckillValue))
+        TasksCompletedInput:SetValue(tostring(TasksCompleted))
     else
         -- Display an error message if the player's cash value can't be found
         CashInput:SetValue("Error: Cash not found")
+        XPInput:SetValue("Error: XP not found")
+        winAsHider:SetValue("Error: Win not found")
+        NpcKillInput:SetValue("Error: NPC kills not found")
+        TasksCompletedInput:SetValue("Error: Tasks Completed not found")
     end
 end)
 
